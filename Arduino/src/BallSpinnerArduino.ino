@@ -4,6 +4,9 @@
 #include <EthernetUdp.h>
 #include <SPI.h>
 #include <OSCMessage.h>
+#include <OSCBundle.h>
+#include <OSCBoards.h>
+
 
 
 
@@ -56,6 +59,51 @@ int inByte = 0;
 int rState;
 
 
+//converts the pin to an osc address
+char * numToOSCAddress( int pin){
+    static char s[10];
+    int i = 9;
+
+    s[i--]= '\0';
+	do
+    {
+		s[i] = "0123456789"[pin % 10];
+                --i;
+                pin /= 10;
+    }
+    while(pin && i);
+    s[i] = '/';
+    return &s[i];
+}
+
+void incomingMessage(OSCMessage &msg, int addrOffset ){
+  //iterate through all the analog pins
+  /*for(byte pin = 0; pin < NUM_DIGITAL_PINS; pin++){
+    //match against the pin number strings
+    int pinMatched = msg.match(numToOSCAddress(pin), addrOffset);
+    if(pinMatched){
+      unsigned int frequency = 0;
+      //if it has an int, then it's an integers frequency in Hz
+      if (msg.isInt(0)){
+        frequency = msg.getInt(0);
+      } //otherwise it's a floating point frequency in Hz
+      else if(msg.isFloat(0)){
+        frequency = msg.getFloat(0);
+      }
+      else
+        noTone(pin);
+      if(frequency>0)
+      {
+         if(msg.isInt(1))
+           tone(pin, frequency, msg.getInt(1));
+         else
+           tone(pin, frequency);
+      }
+    }
+  } */
+}
+
+
 
 
 void setup() {
@@ -95,6 +143,19 @@ void loop() {
 
 
   // ------  OSC Message Process ------
+
+  //reads and dispatches the incoming message
+  OSCBundle bundleIN;
+   int size;
+
+   if( (size = Udp.parsePacket())>0)
+   {
+     while(size--)
+       bundleIN.fill(Udp.read());
+
+      if(!bundleIN.hasError())
+        bundleIN.route("/toArduino", incomingMessage);
+   }
 
   //Set the OSC Path and message
   OSCMessage msg("/rState");
