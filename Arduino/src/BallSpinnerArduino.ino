@@ -1,6 +1,27 @@
 #include <Arduino.h>
 #include "DRV8825.h"
+#include <Ethernet2.h>
+#include <EthernetUdp.h>
+#include <SPI.h>
+#include <OSCMessage.h>
 
+
+
+// ----- OSC Initializing Info -----
+//the Arduino's IP
+IPAddress ip(10, 0, 1, 200);
+//destination IP
+IPAddress outIp(10, 0, 1, 10);
+//in and out ports
+const unsigned int outPort = 8000;
+const unsigned int inPort = 9000;
+//mac address
+byte mac[] = {
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }; // you can find this written on the board of some Arduino Ethernets or shields
+
+EthernetUDP Udp;
+
+//----- Stepper Motor Driver Initializing Info -----
 // Motor steps per revolution. Most steppers are 200 steps or 1.8 degrees/step
 #define MOTOR_STEPS 200
 
@@ -8,15 +29,12 @@
 #define DIR 8
 #define STEP 9
 #define ENBL 13
-
-// microstep control for DRV8825
-// same pinout as A4988, different pin names, supports 32 microsteps
+// microstep control for DRV8825 supports 32 microsteps
 #define MODE0 10
 #define MODE1 11
 #define MODE2 12
 
 DRV8825 stepper(MOTOR_STEPS, DIR, STEP, MODE0, MODE1, MODE2);
-
 
 /*
 * Microstepping mode: 1,2,4,8,16 or 32(DRV8834 only)
@@ -25,8 +43,10 @@ DRV8825 stepper(MOTOR_STEPS, DIR, STEP, MODE0, MODE1, MODE2);
 * The motor should rotate just as fast (set RPM),
 * but movement precision is increased.
 */
+
 //MicroStep speed devider
 int msSpeed = 8;
+//Guess
 int RPM = 3;
 
 // incoming serial byte
@@ -35,45 +55,71 @@ int inByte = 0;
 //current rotation state
 int rState;
 
+
+
+
 void setup() {
-  //start serial with IDE
-  Serial.begin(9600);
+  //Set Ethernet info
+  Ethernet.begin(mac,ip);
+  Udp.begin(8888);
 
-  while (!Serial) {
-    ;// wait for serial port to connect. Needed for native USB port only
-  }
+  //Serial baud rate
+  //Serial.begin(9600);
 
-  establishContact();  // send a byte to establish contact until receiver responds
-
+  // set global RPM for stepper motor
   stepper.setRPM(RPM);
 
+  //init the rotation
   rState = 0;
 }
 
 
 void loop() {
 
+  //Set the microstep speed for fine stepping ;)
   stepper.setMicrostep(msSpeed);
 
+  //Add 1 rotation to the count
+  //@TODO figure our how to make sure that the update of rState
+  // is happening at the same rate that the motor is updating
+  // the pule for a rotation
+  // @TODO Look into the step degrees to increase by that amount (1.8º)
   rState = rState + 1;
 
-  //Tell IDE the Rotation State
-  Serial.println(rState);
-  //if Serial is available, read the bytes then send the Rotation State
-  if (Serial.available() > 0) {
-    // get incoming byte:
-    inByte = Serial.read();
-    Serial.print(rState);
+  //Keep rState looping between 0-359
+  // @TODO Update for above incramenting
+
+  if (rState == 360) {
+    rState = 0;
   }
 
-   stepper.move(1 * msSpeed);
+
+  // ------  OSC Message Process ------
+
+  //Set the OSC Path and message
+  OSCMessage msg("/rState");
+  msg.add(rState);
+
+  //Set the IP path and send packet
+  Udp.beginPacket(outIp, outPort);
+  msg.send(Udp);
+
+  //End the packet and free up space occupied by packet
+  Udp.endPacket();
+  msg.empty();
+
+  //Move the stepper motor by 1 total movement based on
+  // msSpeed steps multiplier
+  stepper.move(1 * msSpeed);
 
 }
 
 
+/*
 void establishContact() {
   while (Serial.available() <= 0) {
     Serial.print('A');   // send a capital A
     delay(300);
   }
 }
+*/
