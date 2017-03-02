@@ -14,6 +14,7 @@
 #define MODE0 10
 #define MODE1 11
 #define MODE2 12
+
 DRV8825 stepper(MOTOR_STEPS, DIR, STEP, MODE0, MODE1, MODE2);
 
 
@@ -37,25 +38,25 @@ int rState;
 void setup() {
   //start serial with IDE
   Serial.begin(9600);
-  
+
   while (!Serial) {
     ;// wait for serial port to connect. Needed for native USB port only
   }
-  
+
   establishContact();  // send a byte to establish contact until receiver responds
-  
+
   stepper.setRPM(RPM);
-  
+
   rState = 0;
 }
 
 
 void loop() {
-  
+
   stepper.setMicrostep(msSpeed);
-  
+
   rState = rState + 1;
-  
+
   //Tell IDE the Rotation State
   Serial.println(rState);
   //if Serial is available, read the bytes then send the Rotation State
@@ -63,10 +64,10 @@ void loop() {
     // get incoming byte:
     inByte = Serial.read();
     Serial.print(rState);
-  } 
-  
+  }
+
    stepper.move(1 * msSpeed);
-  
+
 }
 
 
@@ -76,4 +77,3 @@ void establishContact() {
     delay(300);
   }
 }
-
