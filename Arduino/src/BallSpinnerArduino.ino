@@ -50,7 +50,7 @@ DRV8825 stepper(MOTOR_STEPS, DIR, STEP, MODE0, MODE1, MODE2);
 //MicroStep speed devider
 int msSpeed = 8;
 //Guess
-int RPM = 3;
+int RPM = 10;
 
 // incoming serial byte
 int inByte = 0;
@@ -78,7 +78,9 @@ char * numToOSCAddress( int pin){
 
 void incomingMessage(OSCMessage &msg, int addrOffset ){
   //iterate through all the analog pins
-  /*for(byte pin = 0; pin < NUM_DIGITAL_PINS; pin++){
+
+
+  for(byte pin = 0; pin < NUM_DIGITAL_PINS; pin++){
     //match against the pin number strings
     int pinMatched = msg.match(numToOSCAddress(pin), addrOffset);
     if(pinMatched){
@@ -100,7 +102,7 @@ void incomingMessage(OSCMessage &msg, int addrOffset ){
            tone(pin, frequency);
       }
     }
-  } */
+  }
 }
 
 
@@ -118,7 +120,7 @@ void setup() {
   stepper.setRPM(RPM);
 
   //init the rotation
-  rState = 0;
+  rState = 1;
 }
 
 
@@ -132,23 +134,23 @@ void loop() {
   // is happening at the same rate that the motor is updating
   // the pule for a rotation
   // @TODO Look into the step degrees to increase by that amount (1.8º)
-  rState = rState + 1;
+
 
   //Keep rState looping between 0-359
   // @TODO Update for above incramenting
 
-  if (rState == 360) {
-    rState = 0;
+  if (rState == 200) {
+    rState = 1;
   }
 
 
   // ------  OSC Message Process ------
 
   //reads and dispatches the incoming message
-  OSCBundle bundleIN;
+/*  OSCBundle bundleIN;
    int size;
 
-   if( (size = Udp.parsePacket())>0)
+   if((size = Udp.parsePacket())>0)
    {
      while(size--)
        bundleIN.fill(Udp.read());
@@ -156,6 +158,7 @@ void loop() {
       if(!bundleIN.hasError())
         bundleIN.route("/toArduino", incomingMessage);
    }
+   */
 
   //Set the OSC Path and message
   OSCMessage msg("/rState");
@@ -172,6 +175,8 @@ void loop() {
   //Move the stepper motor by 1 total movement based on
   // msSpeed steps multiplier
   stepper.move(1 * msSpeed);
+
+  rState = rState + 1;
 
 }
 
