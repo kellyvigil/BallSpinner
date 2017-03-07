@@ -31,11 +31,11 @@ EthernetUDP Udp;
 // All the wires needed for full functionality
 #define DIR 8
 #define STEP 9
-#define ENBL 13
+#define ENBL 4
 // microstep control for DRV8825 supports 32 microsteps
-#define MODE0 10
-#define MODE1 11
-#define MODE2 12
+#define MODE0 5
+#define MODE1 6
+#define MODE2 7
 
 DRV8825 stepper(MOTOR_STEPS, DIR, STEP, MODE0, MODE1, MODE2);
 
@@ -57,6 +57,16 @@ int inByte = 0;
 
 //current rotation state
 int rState;
+
+//LED and Button pins
+#define switchPin 0
+#define LEDpin 1
+
+
+int switchState = 0;
+int onOffState = 0;
+
+
 
 
 //converts the pin to an osc address
@@ -111,7 +121,7 @@ void incomingMessage(OSCMessage &msg, int addrOffset ){
 void setup() {
   //Set Ethernet info
   Ethernet.begin(mac,ip);
-  Udp.begin(8888);
+  Udp.begin(inPort);
 
   //Serial baud rate
   //Serial.begin(9600);
@@ -121,13 +131,21 @@ void setup() {
 
   //init the rotation
   rState = 1;
+
+  //Setup the button/LED for in/output
+  pinMode(switchPin, INPUT);
+  pinMode(LEDpin, OUTPUT);
 }
+
+
 
 
 void loop() {
 
   //Set the microstep speed for fine stepping ;)
   stepper.setMicrostep(msSpeed);
+  //read the switchPin
+  switchState = digitalRead(switchPin);
 
   //Add 1 rotation to the count
   //@TODO figure our how to make sure that the update of rState
@@ -160,6 +178,11 @@ void loop() {
    }
    */
 
+if(switchState == HIGH){
+
+  digitalWrite(LEDpin, HIGH);
+  onOffState = 1;
+
   //Set the OSC Path and message
   OSCMessage msg("/rState");
   msg.add(rState);
@@ -172,11 +195,32 @@ void loop() {
   Udp.endPacket();
   msg.empty();
 
+  //send another message called dude
+
+  OSCMessage dude("/onOffState");
+  dude.add(onOffState);
+  //Set the IP path and send packet
+  Udp.beginPacket(outIp, outPort);
+  dude.send(Udp);
+
+  //End the packet and free up space occupied by packet
+  Udp.endPacket();
+  dude.empty();
+
   //Move the stepper motor by 1 total movement based on
   // msSpeed steps multiplier
   stepper.move(1 * msSpeed);
 
   rState = rState + 1;
+
+  }
+
+  else{
+      onOffState = 0;
+      digitalWrite(LEDpin, LOW);
+  }
+
+
 
 }
 
